@@ -43,6 +43,9 @@
         //tracks visible state
         this.isShowing = false;
 
+        // clicks counter (first is start date, second is end date)
+        this.clicks = 0;
+
         //create the picker HTML object
         var DRPTemplate = '<div class="daterangepicker dropdown-menu">' +
                 '<div class="calendar first left"></div>' +
@@ -317,11 +320,11 @@
 
             // bind the time zone used to build the calendar to either the timeZone passed in through the options or the zone of the startDate (which will be the local time zone by default)
             if (typeof options.timeZone === 'string' || typeof options.timeZone === 'number') {
-            	if (typeof options.timeZone === 'string' && typeof moment.tz !== 'undefined') {
-            		this.timeZone = moment.tz.zone(options.timeZone).parse(new Date) * -1;	// Offset is positive if the timezone is behind UTC and negative if it is ahead.
-            	} else {
-            		this.timeZone = options.timeZone;
-            	}
+                if (typeof options.timeZone === 'string' && typeof moment.tz !== 'undefined') {
+                    this.timeZone = moment.tz.zone(options.timeZone).parse(new Date) * -1;  // Offset is positive if the timezone is behind UTC and negative if it is ahead.
+                } else {
+                    this.timeZone = options.timeZone;
+                }
               this.startDate.utcOffset(this.timeZone);
               this.endDate.utcOffset(this.timeZone);
             } else {
@@ -536,12 +539,12 @@
 
             this.updateCalendars();
         },
-        
+
         keydown: function (e) {
             //hide on tab or enter
-        	if ((e.keyCode === 9) || (e.keyCode === 13)) {
-        		this.hide();
-        	}
+            if ((e.keyCode === 9) || (e.keyCode === 13)) {
+                this.hide();
+            }
         },
 
         notify: function () {
@@ -551,7 +554,7 @@
 
         move: function () {
             var parentOffset = { top: 0, left: 0 },
-            	containerTop;
+                containerTop;
             var parentRightEdge = $(window).width();
             if (!this.parentEl.is('body')) {
                 parentOffset = {
@@ -560,11 +563,11 @@
                 };
                 parentRightEdge = this.parentEl[0].clientWidth + this.parentEl.offset().left;
             }
-            
+
             if (this.drops == 'up')
-            	containerTop = this.element.offset().top - this.container.outerHeight() - parentOffset.top;
+                containerTop = this.element.offset().top - this.container.outerHeight() - parentOffset.top;
             else
-            	containerTop = this.element.offset().top + this.element.outerHeight() - parentOffset.top;
+                containerTop = this.element.offset().top + this.element.outerHeight() - parentOffset.top;
             this.container[this.drops == 'up' ? 'addClass' : 'removeClass']('dropup');
 
             if (this.opens == 'left') {
@@ -798,6 +801,7 @@
                   endDate = this.maxDate.clone();
                 }
             }
+
             this.startDate = startDate;
             this.endDate = endDate;
 
@@ -811,25 +815,37 @@
             var col = title.substr(3, 1);
             var cal = $(e.target).parents('.calendar');
 
-            var startDate, endDate;
-            if (cal.hasClass('left')) {
-                startDate = this.leftCalendar.calendar[row][col];
-                endDate = this.endDate;
+            var startDate, endDate,
+                calendarSide = cal.hasClass('left') ? 'leftCalendar' : 'rightCalendar';
+            // if (cal.hasClass('left')) {
+            if (this.clicks === 0) {
+                // startDate = this.leftCalendar.calendar[row][col];
+                startDate = this[calendarSide].calendar[row][col];
+                // endDate = this.endDate;
+                endDate = startDate;
                 if (typeof this.dateLimit === 'object') {
                     var maxDate = moment(startDate).add(this.dateLimit).startOf('day');
                     if (endDate.isAfter(maxDate)) {
                         endDate = maxDate;
                     }
                 }
+                this.clicks = 1;
             } else {
                 startDate = this.startDate;
-                endDate = this.rightCalendar.calendar[row][col];
+                endDate = this[calendarSide].calendar[row][col];
+
+                if (endDate.isBefore(startDate)) {
+                    startDate = this[calendarSide].calendar[row][col];
+                    endDate = this.startDate;
+                }
+
                 if (typeof this.dateLimit === 'object') {
                     var minDate = moment(endDate).subtract(this.dateLimit).startOf('day');
                     if (startDate.isBefore(minDate)) {
                         startDate = minDate;
                     }
                 }
+                this.clicks = 0;
             }
 
             if (this.singleDatePicker && cal.hasClass('left')) {
@@ -1120,17 +1136,12 @@
                 for (var col = 0; col < 7; col++) {
                     var cname = 'available ';
                     cname += (calendar[row][col].month() == calendar[1][1].month()) ? '' : 'off';
-
                     if ((minDate && calendar[row][col].isBefore(minDate, 'day')) || (maxDate && calendar[row][col].isAfter(maxDate, 'day'))) {
                         cname = ' off disabled ';
-                    } else if (calendar[row][col].format('YYYY-MM-DD') == selected.format('YYYY-MM-DD')) {
-                        cname += ' active ';
-                        if (calendar[row][col].format('YYYY-MM-DD') == this.startDate.format('YYYY-MM-DD')) {
-                            cname += ' start-date ';
-                        }
-                        if (calendar[row][col].format('YYYY-MM-DD') == this.endDate.format('YYYY-MM-DD')) {
-                            cname += ' end-date ';
-                        }
+                    } else if (calendar[row][col].format('YYYY-MM-DD') == this.startDate.format('YYYY-MM-DD')) {
+                        cname += 'active start-date ';
+                    } else if (calendar[row][col].format('YYYY-MM-DD') == this.endDate.format('YYYY-MM-DD')) {
+                        cname += 'active end-date ';
                     } else if (calendar[row][col] >= this.startDate && calendar[row][col] <= this.endDate) {
                         cname += ' in-range ';
                         if (calendar[row][col].isSame(this.startDate)) { cname += ' start-date '; }
